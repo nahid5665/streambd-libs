@@ -142,5 +142,11 @@
     "name": "NHD API",
     "url": "https://myselfhridoy.github.io/streambd-libs/addons/NHD.js",
     "enabled": true
+  },
+  {
+    "id": "dhakaflix_parser",
+    "name": "DhakaFlix (Campus LAN)",
+    "url": "https://cdn.jsdelivr.net/gh/nahid5665/streambd-libs@main/addons/dhakaflix.js",
+    "enabled": true
   }
 ]
