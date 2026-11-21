@@ -148,5 +148,11 @@
     "name": "DhakaFlix (Campus LAN)",
     "url": "https://cdn.jsdelivr.net/gh/nahid5665/streambd-libs@main/addons/dhakaflix.js",
     "enabled": true
+  },
+  {
+    "id": "discoveryftp_parser",
+    "name": "Discovery FTP (DFLIX)",
+    "url": "https://cdn.jsdelivr.net/gh/nahid5665/streambd-libs@main/addons/discoveryftp.js",
+    "enabled": true
   }
 ]
