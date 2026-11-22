@@ -19,6 +19,9 @@
  *   - Every item URL routes through the "OlaMovies Link Generator"
  *     (links.ol-am.top/<token>) which exposes POST /api/generate {id} and
  *     POST /api/cloud {id} (direct-download mirror); a captcha gate can appear.
+ *     The generator's terminal host is Pixeldrain: files land on
+ *     pixeldrain.com/api/file/<id> (serves raw bytes inline, playable) and
+ *     ?download links are normalized to that streamable form here.
  *
  * Strategy: TMDB -> title/year -> /search -> score post slugs -> fetch posts ->
  *           parse items -> match movie title / season+episode -> resolve the
@@ -37,6 +40,15 @@ module.exports = async function (type, tmdbId, season, episode) {
     var PROVIDER = "OlaMovies";
     var VIDEO_RE = /\.(mkv|mp4|avi|ts|webm|mov|wmv|flv|mpg|mpeg|m4v)(\?|$)/i;
     var ITEM_URL_RE = /^https:\/\/links\.ol-am\.top\/[A-Za-z0-9_-]+$/;
+    // the generator's terminal host: files land on pixeldrain, whose
+    // /api/file/<id> endpoint serves the raw bytes inline (verified
+    // video/matroska, Content-Disposition: inline) -> directly playable
+    var PIXELDRAIN_RE = /^https?:\/\/pixeldrain\.com\/(?:api\/)?file\/([A-Za-z0-9]{4,12})(\?.*)?$/i;
+
+    function pixeldrainDirect(url) {
+      var m = String(url || "").match(PIXELDRAIN_RE);
+      return m ? "https://pixeldrain.com/api/file/" + m[1] : null;
+    }
 
     function httpGet(url, referer) {
       var h = { "User-Agent": UA };
@@ -177,6 +189,9 @@ module.exports = async function (type, tmdbId, season, episode) {
       var m;
       while ((m = re.exec(text)) !== null) {
         var u = m[0];
+        // pixeldrain file links have no extension but are direct playable files
+        var pd = pixeldrainDirect(u);
+        if (pd) { out.push(pd); continue; }
         if (VIDEO_RE.test(u) && !/\.(jpe?g|png|webp|gif|css|js|ico|svg|mp3)(\?|$)/i.test(u)) out.push(u);
       }
       // de-dupe, strip trailing escapes
@@ -234,6 +249,9 @@ module.exports = async function (type, tmdbId, season, episode) {
           var r = await fetch(cur.url, { headers: h, redirect: "follow" });
           if (r.status >= 500) throw { networkDown: true, status: r.status };
           finalUrl = r.url || cur.url;
+          // a redirect that lands on pixeldrain is the file itself
+          var pdFinal = pixeldrainDirect(finalUrl);
+          if (pdFinal) return pdFinal;
           var ct = r.headers.get("content-type") || "";
           if (VIDEO_RE.test(finalUrl) || /video\//i.test(ct)) return finalUrl;
           if (/text\/html|application\/json|text\/plain/i.test(ct)) body = await r.text();
@@ -300,6 +318,8 @@ module.exports = async function (type, tmdbId, season, episode) {
     var deadOrigins = {};
 
     async function resolveItem(itemUrl, referer) {
+      var pd = pixeldrainDirect(itemUrl);
+      if (pd) return pd; // item already points at the file
       if (!ITEM_URL_RE.test(itemUrl)) {
         return VIDEO_RE.test(itemUrl) ? itemUrl : null;
       }
